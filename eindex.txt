@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ejecución del gasto · Sector 10 Educación</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --bg:#0b0c10; --panel:#14161c; --panel2:#1a1d24; --border:#262a33;
+    --text:#e8e9ec; --muted:#8b8f9a; --accent:#e94560; --accent2:#4ea8de;
+    --good:#2ecc71; --mid:#f5b942; --low:#e94560;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px 32px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:12px;
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand .logo{
+    width:36px; height:36px; border-radius:8px; background:var(--accent);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px;
+  }
+  .brand h1{font-size:18px; margin:0; font-weight:600;}
+  .brand .sub{font-size:12px; color:var(--muted);}
+
+  .year-select-wrap{display:flex; align-items:center; gap:8px;}
+  .year-select-wrap label{font-size:12.5px; color:var(--muted);}
+
+  main{max-width:1200px; margin:0 auto; padding:28px 32px 64px;}
+
+  .badge{
+    display:inline-flex; align-items:center; gap:6px; background:rgba(46,204,113,.12);
+    border:1px solid rgba(46,204,113,.35); color:var(--good);
+    padding:6px 12px; border-radius:20px; font-size:12.5px; font-weight:500; margin-bottom:20px;
+  }
+
+  .cards{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr));
+    gap:16px; margin-bottom:36px;
+  }
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 20px;
+  }
+  .card .label{
+    font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:8px;
+  }
+  .card .value{font-size:28px; font-weight:700;}
+  .card .foot{font-size:12.5px; color:var(--muted); margin-top:4px;}
+  .card.pia .value{color:#c792ea;}
+  .card.pim .value{color:var(--accent2);}
+  .card.dev .value{color:var(--good);}
+  .card.avance .value{color:var(--mid);}
+
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; margin-bottom:24px;
+  }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;
+  }
+  .panel-head h3{font-size:15px; margin:0; font-weight:600;}
+  .panel-head .count{font-size:12.5px; color:var(--muted);}
+
+  .controls{display:flex; gap:10px; flex-wrap:wrap;}
+  input[type=text], select{
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:9px 12px; border-radius:8px; font-size:13.5px; outline:none;
+  }
+  input[type=text]{min-width:240px;}
+  input[type=text]:focus, select:focus{border-color:var(--accent2);}
+
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{
+    text-align:left; font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--muted); padding:10px 12px; border-bottom:1px solid var(--border);
+    cursor:pointer; user-select:none; white-space:nowrap;
+  }
+  thead th:hover{color:var(--text);}
+  thead th.num{text-align:right;}
+  tbody td{padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle;}
+  tbody td.num{text-align:right; font-variant-numeric:tabular-nums;}
+  tbody tr{cursor:pointer;}
+  tbody tr:hover{background:var(--panel2);}
+  tbody tr.active{background:rgba(78,168,222,.12);}
+
+  .bar-wrap{display:flex; align-items:center; gap:8px; justify-content:flex-end;}
+  .bar-track{width:70px; height:6px; background:var(--panel2); border-radius:3px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:3px;}
+  .pct-label{font-size:12px; min-width:38px; text-align:right; font-variant-numeric:tabular-nums;}
+
+  .empty{padding:24px; text-align:center; color:var(--muted); font-size:13.5px;}
+  .pliego-tag{
+    display:inline-block; font-size:11px; color:var(--accent2); background:rgba(78,168,222,.12);
+    border:1px solid rgba(78,168,222,.3); padding:2px 8px; border-radius:12px; margin-left:8px;
+  }
+  .clear-filter{
+    font-size:12.5px; color:var(--accent2); cursor:pointer; background:none; border:none; padding:0;
+    text-decoration:underline;
+  }
+
+  #map{
+    height:460px; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border);
+  }
+  .map-legend{
+    display:flex; align-items:center; gap:16px; margin-top:12px; font-size:12px; color:var(--muted); flex-wrap:wrap;
+  }
+  .map-legend .swatch{display:inline-flex; align-items:center; gap:6px;}
+  .map-legend .dot{width:12px; height:12px; border-radius:3px; display:inline-block;}
+  .leaflet-tile-pane{filter:brightness(0.8) invert(1) contrast(0.9) hue-rotate(180deg);}
+  .region-tooltip{
+    background:var(--panel2) !important; color:var(--text) !important; border:1px solid var(--border) !important;
+    font-size:12.5px !important; border-radius:6px !important;
+  }
+  .region-tooltip::before{border-top-color:var(--border) !important;}
+
+  footer{text-align:center; color:var(--muted); font-size:12px; padding:24px 0 0;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">S10</div>
+    <div>
+      <h1>Ejecución del gasto · Sector 10</h1>
+      <div class="sub">Ministerio de Educación y organismos adscritos</div>
+    </div>
+  </div>
+  <div class="year-select-wrap">
+    <label for="year-select">Año</label>
+    <select id="year-select"></select>
+  </div>
+</header>
+
+<main>
+  <span class="badge">● Datos reales · MEF / SIAF · Sector 10</span>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <h3>Ejecución por región</h3>
+        <div class="count">devengado acumulado, por departamento de meta</div>
+      </div>
+    </div>
+    <div id="map"></div>
+    <div class="map-legend">
+      <span class="swatch"><span class="dot" style="background:#1b3a2e"></span>Menor ejecución</span>
+      <span class="swatch"><span class="dot" style="background:#2ecc71"></span>Mayor ejecución</span>
+      <span style="margin-left:auto;">Pasa el cursor sobre una región para ver el detalle</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <h3>Pliegos</h3>
+        <div class="count" id="pliegos-count"></div>
+      </div>
+      <div class="controls">
+        <input type="text" id="search-pliego" placeholder="Buscar pliego...">
+        <select id="sort-pliego">
+          <option value="pim-desc">PIM: mayor a menor</option>
+          <option value="pim-asc">PIM: menor a mayor</option>
+          <option value="avance-desc">Avance: mayor a menor</option>
+          <option value="avance-asc">Avance: menor a mayor</option>
+          <option value="nombre-asc">Nombre A-Z</option>
+        </select>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="tbl-pliegos">
+        <thead>
+          <tr>
+            <th>Pliego</th>
+            <th class="num">PIA</th>
+            <th class="num">PIM</th>
+            <th class="num">Devengado</th>
+            <th class="num">Avance</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <h3>Ejecutoras <span id="pliego-filter-tag"></span></h3>
+        <div class="count" id="ejec-count"></div>
+      </div>
+      <div class="controls">
+        <input type="text" id="search-ejec" placeholder="Buscar ejecutora...">
+        <select id="sort-ejec">
+          <option value="pim-desc">PIM: mayor a menor</option>
+          <option value="pim-asc">PIM: menor a mayor</option>
+          <option value="avance-desc">Avance: mayor a menor</option>
+          <option value="avance-asc">Avance: menor a mayor</option>
+          <option value="nombre-asc">Nombre A-Z</option>
+        </select>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="tbl-ejec">
+        <thead>
+          <tr>
+            <th>Ejecutora</th>
+            <th>Pliego</th>
+            <th class="num">PIA</th>
+            <th class="num">PIM</th>
+            <th class="num">Devengado</th>
+            <th class="num">Avance</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>Generado a partir de datos exportados desde SQL Server (SIAF · Sector 10)</footer>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="data.js"></script>
+<script>
+function fmtMoney(n){
+  return "S/ " + (n||0).toLocaleString('es-PE', {maximumFractionDigits:0});
+}
+function fmtCompact(n){
+  n = n || 0;
+  if (n >= 1e9) return "S/ " + (n/1e9).toFixed(1) + " mil M";
+  if (n >= 1e6) return "S/ " + (n/1e6).toFixed(1) + " M";
+  if (n >= 1e3) return "S/ " + (n/1e3).toFixed(1) + " mil";
+  return "S/ " + n.toFixed(0);
+}
+function pctColor(p){
+  if (p >= 60) return "var(--good)";
+  if (p >= 35) return "var(--mid)";
+  return "var(--low)";
+}
+function barCell(pct){
+  const p = Math.max(0, Math.min(100, pct||0));
+  return `<div class="bar-wrap">
+      <div class="bar-track"><div class="bar-fill" style="width:${p}%; background:${pctColor(p)}"></div></div>
+      <span class="pct-label" style="color:${pctColor(p)}">${p.toFixed(1)}%</span>
+    </div>`;
+}
+
+// ---- Estado global ----
+let currentYear = DATA_ANIOS[0];
+let activePliego = null;
+
+// ---- Selector de año ----
+const yearSelect = document.getElementById('year-select');
+yearSelect.innerHTML = DATA_ANIOS.map(a => `<option value="${a}">${a}</option>`).join('');
+yearSelect.value = currentYear;
+yearSelect.addEventListener('change', () => {
+  currentYear = yearSelect.value;
+  activePliego = null;
+  renderAll();
+});
+
+// ---- Tarjetas resumen ----
+function renderCards(){
+  const r = DATA_RESUMEN.find(x => x.ANO_EJE === currentYear) || {};
+  document.getElementById('cards').innerHTML = `
+    <div class="card pliegos">
+      <div class="label">Pliegos</div>
+      <div class="value">${r.num_pliegos||0}</div>
+      <div class="foot">${r.num_ejecutoras||0} unidades ejecutoras</div>
+    </div>
+    <div class="card pia">
+      <div class="label">PIA</div>
+      <div class="value">${fmtCompact(r.total_pia)}</div>
+      <div class="foot">presupuesto inicial de apertura</div>
+    </div>
+    <div class="card pim">
+      <div class="label">PIM</div>
+      <div class="value">${fmtCompact(r.total_pim)}</div>
+      <div class="foot">presupuesto institucional modificado</div>
+    </div>
+    <div class="card dev">
+      <div class="label">Devengado</div>
+      <div class="value">${fmtCompact(r.total_devengado)}</div>
+      <div class="foot">ejecución acumulada</div>
+    </div>
+    <div class="card avance">
+      <div class="label">Avance</div>
+      <div class="value">${(r.avance_pct||0).toFixed(1)}%</div>
+      <div class="foot">devengado / PIM</div>
+    </div>
+  `;
+}
+
+// ---- Mapa ----
+const map = L.map('map', {scrollWheelZoom:false, zoomControl:true}).setView([-9.2, -75.5], 5);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '',
+  maxZoom: 8
+}).addTo(map);
+
+let geoLayer = null;
+
+function colorForPct(devengado, maxDev){
+  const t = maxDev > 0 ? Math.min(1, devengado / maxDev) : 0;
+  const stops = [
+    {t:0,   c:[27,58,46]},
+    {t:0.5, c:[47,120,90]},
+    {t:1,   c:[46,204,113]}
+  ];
+  let a = stops[0], b = stops[1];
+  if (t > 0.5){ a = stops[1]; b = stops[2]; }
+  const localT = a.t === b.t ? 0 : (t - a.t) / (b.t - a.t);
+  const rgb = a.c.map((v,i) => Math.round(v + (b.c[i]-v)*localT));
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+}
+
+function renderMap(){
+  const rows = DATA_REGIONES.filter(r => r.ANO_EJE === currentYear);
+  const byCode = {};
+  rows.forEach(r => byCode[r.DEPARTAMENTO_META] = r);
+  const maxDev = Math.max(0, ...rows.map(r => r.devengado || 0));
+
+  if (geoLayer) map.removeLayer(geoLayer);
+
+  geoLayer = L.geoJSON(PERU_GEOJSON, {
+    style: feat => {
+      const code = feat.properties.FIRST_IDDP;
+      const r = byCode[code];
+      return {
+        fillColor: colorForPct(r ? r.devengado : 0, maxDev),
+        fillOpacity: 0.85,
+        color: '#0b0c10',
+        weight: 1
+      };
+    },
+    onEachFeature: (feat, layer) => {
+      const code = feat.properties.FIRST_IDDP;
+      const r = byCode[code];
+      const nombre = feat.properties.NOMBDEP;
+      const html = r
+        ? `<strong>${nombre}</strong><br>PIM: ${fmtMoney(r.pim)}<br>Devengado: ${fmtMoney(r.devengado)}<br>Avance: ${r.avance_pct.toFixed(1)}%`
+        : `<strong>${nombre}</strong><br>Sin datos`;
+      layer.bindTooltip(html, {className:'region-tooltip', sticky:true});
+      layer.on('mouseover', () => layer.setStyle({weight:2, color:'#4ea8de'}));
+      layer.on('mouseout', () => layer.setStyle({weight:1, color:'#0b0c10'}));
+    }
+  }).addTo(map);
+}
+
+// ---- Tabla Pliegos ----
+const tbodyP = document.querySelector('#tbl-pliegos tbody');
+const searchP = document.getElementById('search-pliego');
+const sortP = document.getElementById('sort-pliego');
+const countP = document.getElementById('pliegos-count');
+
+function renderPliegos(){
+  let rows = DATA_PLIEGOS.filter(r => r.ANO_EJE === currentYear);
+  const total = rows.length;
+  const q = searchP.value.trim().toLowerCase();
+  if (q) rows = rows.filter(r => r.PLIEGO_NOMBRE.toLowerCase().includes(q) || r.PLIEGO.includes(q));
+
+  const sort = sortP.value;
+  rows.sort((a,b) => {
+    if (sort === 'pim-desc') return b.pim - a.pim;
+    if (sort === 'pim-asc') return a.pim - b.pim;
+    if (sort === 'avance-desc') return b.avance_pct - a.avance_pct;
+    if (sort === 'avance-asc') return a.avance_pct - b.avance_pct;
+    if (sort === 'nombre-asc') return a.PLIEGO_NOMBRE.localeCompare(b.PLIEGO_NOMBRE);
+    return 0;
+  });
+
+  countP.textContent = `${rows.length} de ${total} pliegos`;
+
+  if (rows.length === 0){
+    tbodyP.innerHTML = `<tr><td colspan="5" class="empty">Sin resultados</td></tr>`;
+    return;
+  }
+
+  tbodyP.innerHTML = rows.map(r => `
+    <tr data-pliego="${r.PLIEGO}" class="${activePliego === r.PLIEGO ? 'active' : ''}">
+      <td>${r.PLIEGO_NOMBRE}<div style="font-size:11px;color:var(--muted)">Pliego ${r.PLIEGO}</div></td>
+      <td class="num">${fmtMoney(r.pia)}</td>
+      <td class="num">${fmtMoney(r.pim)}</td>
+      <td class="num">${fmtMoney(r.devengado)}</td>
+      <td class="num">${barCell(r.avance_pct)}</td>
+    </tr>
+  `).join('');
+
+  tbodyP.querySelectorAll('tr[data-pliego]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const code = tr.getAttribute('data-pliego');
+      activePliego = (activePliego === code) ? null : code;
+      renderPliegos();
+      renderEjecutoras();
+    });
+  });
+}
+
+searchP.addEventListener('input', renderPliegos);
+sortP.addEventListener('change', renderPliegos);
+
+// ---- Tabla Ejecutoras ----
+const tbodyE = document.querySelector('#tbl-ejec tbody');
+const searchE = document.getElementById('search-ejec');
+const sortE = document.getElementById('sort-ejec');
+const countE = document.getElementById('ejec-count');
+const tagEl = document.getElementById('pliego-filter-tag');
+
+function renderEjecutoras(){
+  let rows = DATA_EJECUTORAS.filter(r => r.ANO_EJE === currentYear);
+  const total = rows.length;
+
+  if (activePliego){
+    rows = rows.filter(r => r.PLIEGO === activePliego);
+    const pliegoNombre = (DATA_PLIEGOS.find(p => p.PLIEGO === activePliego && p.ANO_EJE === currentYear) || {}).PLIEGO_NOMBRE || '';
+    tagEl.innerHTML = `<span class="pliego-tag">${pliegoNombre}</span> <button class="clear-filter" id="clear-filter">quitar filtro</button>`;
+    document.getElementById('clear-filter').addEventListener('click', () => {
+      activePliego = null;
+      renderPliegos();
+      renderEjecutoras();
+    });
+  } else {
+    tagEl.innerHTML = '';
+  }
+
+  const q = searchE.value.trim().toLowerCase();
+  if (q) rows = rows.filter(r => r.EJECUTORA_NOMBRE.toLowerCase().includes(q));
+
+  const sort = sortE.value;
+  rows.sort((a,b) => {
+    if (sort === 'pim-desc') return b.pim - a.pim;
+    if (sort === 'pim-asc') return a.pim - b.pim;
+    if (sort === 'avance-desc') return b.avance_pct - a.avance_pct;
+    if (sort === 'avance-asc') return a.avance_pct - b.avance_pct;
+    if (sort === 'nombre-asc') return a.EJECUTORA_NOMBRE.localeCompare(b.EJECUTORA_NOMBRE);
+    return 0;
+  });
+
+  countE.textContent = `${rows.length} de ${total} ejecutoras`;
+
+  if (rows.length === 0){
+    tbodyE.innerHTML = `<tr><td colspan="6" class="empty">Sin resultados</td></tr>`;
+    return;
+  }
+
+  tbodyE.innerHTML = rows.map(r => {
+    const pliegoNombre = (DATA_PLIEGOS.find(p => p.PLIEGO === r.PLIEGO && p.ANO_EJE === currentYear) || {}).PLIEGO_NOMBRE || r.PLIEGO;
+    return `
+    <tr>
+      <td>${r.EJECUTORA_NOMBRE}<div style="font-size:11px;color:var(--muted)">Sec. ejec. ${r.SEC_EJEC}</div></td>
+      <td>${pliegoNombre}</td>
+      <td class="num">${fmtMoney(r.pia)}</td>
+      <td class="num">${fmtMoney(r.pim)}</td>
+      <td class="num">${fmtMoney(r.devengado)}</td>
+      <td class="num">${barCell(r.avance_pct)}</td>
+    </tr>`;
+  }).join('');
+}
+
+searchE.addEventListener('input', renderEjecutoras);
+sortE.addEventListener('change', renderEjecutoras);
+
+function renderAll(){
+  renderCards();
+  renderMap();
+  renderPliegos();
+  renderEjecutoras();
+}
+
+renderAll();
+setTimeout(() => map.invalidateSize(), 200);
+</script>
+
+</body>
+</html>
