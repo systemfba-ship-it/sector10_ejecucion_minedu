@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ejecución del gasto · Sector 10 Educación</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#0b0c10; --panel:#14161c; --panel2:#1a1d24; --border:#262a33;
@@ -104,6 +105,12 @@
     font-size:12.5px; color:var(--accent2); cursor:pointer; background:none; border:none; padding:0;
     text-decoration:underline;
   }
+  .btn-excel{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:9px 14px; border-radius:8px; font-size:13px; cursor:pointer;
+  }
+  .btn-excel:hover{border-color:var(--good); color:var(--good);}
 
   #map{
     height:460px; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border);
@@ -174,6 +181,7 @@
           <option value="avance-asc">Avance: menor a mayor</option>
           <option value="nombre-asc">Nombre A-Z</option>
         </select>
+        <button class="btn-excel" id="export-pliegos">⬇ Descargar Excel</button>
       </div>
     </div>
     <div style="overflow-x:auto;">
@@ -207,6 +215,7 @@
           <option value="avance-asc">Avance: menor a mayor</option>
           <option value="nombre-asc">Nombre A-Z</option>
         </select>
+        <button class="btn-excel" id="export-ejec">⬇ Descargar Excel</button>
       </div>
     </div>
     <div style="overflow-x:auto;">
@@ -362,6 +371,7 @@ const tbodyP = document.querySelector('#tbl-pliegos tbody');
 const searchP = document.getElementById('search-pliego');
 const sortP = document.getElementById('sort-pliego');
 const countP = document.getElementById('pliegos-count');
+let currentPliegoRows = [];
 
 function renderPliegos(){
   let rows = DATA_PLIEGOS.filter(r => r.ANO_EJE === currentYear);
@@ -380,6 +390,7 @@ function renderPliegos(){
   });
 
   countP.textContent = `${rows.length} de ${total} pliegos`;
+  currentPliegoRows = rows;
 
   if (rows.length === 0){
     tbodyP.innerHTML = `<tr><td colspan="5" class="empty">Sin resultados</td></tr>`;
@@ -415,6 +426,7 @@ const searchE = document.getElementById('search-ejec');
 const sortE = document.getElementById('sort-ejec');
 const countE = document.getElementById('ejec-count');
 const tagEl = document.getElementById('pliego-filter-tag');
+let currentEjecRows = [];
 
 function renderEjecutoras(){
   let rows = DATA_EJECUTORAS.filter(r => r.ANO_EJE === currentYear);
@@ -447,6 +459,7 @@ function renderEjecutoras(){
   });
 
   countE.textContent = `${rows.length} de ${total} ejecutoras`;
+  currentEjecRows = rows;
 
   if (rows.length === 0){
     tbodyE.innerHTML = `<tr><td colspan="6" class="empty">Sin resultados</td></tr>`;
@@ -469,6 +482,39 @@ function renderEjecutoras(){
 
 searchE.addEventListener('input', renderEjecutoras);
 sortE.addEventListener('change', renderEjecutoras);
+
+// ---- Exportar a Excel ----
+function descargarExcel(rows, columnas, nombreArchivo, nombreHoja){
+  const datos = rows.map(r => {
+    const fila = {};
+    columnas.forEach(([campo, etiqueta]) => { fila[etiqueta] = r[campo]; });
+    return fila;
+  });
+  const hoja = XLSX.utils.json_to_sheet(datos);
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, nombreHoja);
+  XLSX.writeFile(libro, nombreArchivo);
+}
+
+document.getElementById('export-pliegos').addEventListener('click', () => {
+  descargarExcel(
+    currentPliegoRows,
+    [['ANO_EJE','Año'],['PLIEGO','Pliego'],['PLIEGO_NOMBRE','Nombre'],
+     ['pia','PIA'],['pim','PIM'],['devengado','Devengado'],['avance_pct','Avance %']],
+    `pliegos_sector10_${currentYear}.xlsx`,
+    'Pliegos'
+  );
+});
+
+document.getElementById('export-ejec').addEventListener('click', () => {
+  descargarExcel(
+    currentEjecRows,
+    [['ANO_EJE','Año'],['PLIEGO','Pliego'],['SEC_EJEC','Sec. Ejecutora'],['EJECUTORA_NOMBRE','Nombre'],
+     ['pia','PIA'],['pim','PIM'],['devengado','Devengado'],['avance_pct','Avance %']],
+    `ejecutoras_sector10_${currentYear}.xlsx`,
+    'Ejecutoras'
+  );
+});
 
 function renderAll(){
   renderCards();
