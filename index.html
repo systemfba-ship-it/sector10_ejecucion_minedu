@@ -6,6 +6,7 @@
 <title>Ejecución del gasto · Sector 10 Educación</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   :root{
     --bg:#0b0c10; --panel:#14161c; --panel2:#1a1d24; --border:#262a33;
@@ -33,17 +34,18 @@
   .year-select-wrap{display:flex; align-items:center; gap:8px;}
   .year-select-wrap label{font-size:12.5px; color:var(--muted);}
 
-  main{max-width:1200px; margin:0 auto; padding:28px 32px 64px;}
+  main{max-width:1240px; margin:0 auto; padding:24px 32px 64px;}
 
   .badge{
     display:inline-flex; align-items:center; gap:6px; background:rgba(46,204,113,.12);
     border:1px solid rgba(46,204,113,.35); color:var(--good);
-    padding:6px 12px; border-radius:20px; font-size:12.5px; font-weight:500; margin-bottom:20px;
+    padding:6px 12px; border-radius:20px; font-size:12.5px; font-weight:500; margin-bottom:18px;
   }
 
+  /* Filtros Globales */
   .filter-panel{
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
-    padding:16px 20px; margin-bottom:24px;
+    padding:16px 20px; margin-bottom:20px;
   }
   .filter-grid{
     display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; width:100%;
@@ -51,24 +53,44 @@
   .filter-group{display:flex; flex-direction:column; gap:6px;}
   .filter-group label{font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:600; letter-spacing:.04em;}
 
+  /* Tarjetas KPI (5 en fila) */
   .cards{
-    display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr));
-    gap:16px; margin-bottom:24px;
+    display:grid; grid-template-columns:repeat(5, minmax(0, 1fr));
+    gap:14px; margin-bottom:24px;
+  }
+  @media (max-width: 960px){
+    .cards{grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));}
   }
   .card{
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
-    padding:18px 20px;
+    padding:16px 18px;
   }
   .card .label{
-    font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:8px;
+    font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;
   }
-  .card .value{font-size:28px; font-weight:700;}
-  .card .foot{font-size:12.5px; color:var(--muted); margin-top:4px;}
+  .card .value{font-size:24px; font-weight:700;}
+  .card .foot{font-size:11.5px; color:var(--muted); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .card.pia .value{color:#c792ea;}
   .card.pim .value{color:var(--accent2);}
   .card.dev .value{color:var(--good);}
   .card.avance .value{color:var(--mid);}
 
+  /* Pestañas (Tabs) */
+  .tabs{
+    display:flex; gap:8px; border-bottom:1px solid var(--border); margin-bottom:24px;
+  }
+  .tab-btn{
+    background:none; border:none; color:var(--muted); font-size:14px; font-weight:600;
+    padding:10px 20px; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;
+  }
+  .tab-btn:hover{color:var(--text);}
+  .tab-btn.active{
+    color:var(--accent2); border-bottom-color:var(--accent2);
+  }
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+
+  /* Paneles */
   .panel{
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
     padding:20px; margin-bottom:24px;
@@ -86,6 +108,7 @@
   }
   input[type=text]:focus, select:focus{border-color:var(--accent2);}
 
+  /* Tablas */
   table{width:100%; border-collapse:collapse; font-size:13.5px;}
   thead th{
     text-align:left; font-size:11px; letter-spacing:.05em; text-transform:uppercase;
@@ -121,6 +144,7 @@
   }
   .btn-excel:hover{border-color:var(--good); color:var(--good);}
 
+  /* Mapa */
   #map{
     height:480px; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border);
   }
@@ -129,12 +153,26 @@
   }
   .map-legend .swatch{display:inline-flex; align-items:center; gap:6px;}
   .map-legend .dot{width:12px; height:12px; border-radius:3px; display:inline-block;}
-  .leaflet-tile-pane{filter:brightness(0.8) invert(1) contrast(0.9) hue-rotate(180deg);}
   .region-tooltip{
     background:var(--panel2) !important; color:var(--text) !important; border:1px solid var(--border) !important;
     font-size:12.5px !important; border-radius:6px !important;
   }
   .region-tooltip::before{border-top-color:var(--border) !important;}
+
+  /* Grid de Gráficos */
+  .charts-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(480px, 1fr)); gap:20px;
+  }
+  @media (max-width: 600px){
+    .charts-grid{grid-template-columns:1fr;}
+  }
+  .chart-card{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; display:flex; flex-direction:column;
+  }
+  .chart-card h4{margin:0 0 4px; font-size:14px; font-weight:600;}
+  .chart-card .sub{font-size:12px; color:var(--muted); margin-bottom:16px;}
+  .chart-container{position:relative; flex:1; min-height:280px;}
 
   footer{text-align:center; color:var(--muted); font-size:12px; padding:24px 0 0;}
 </style>
@@ -158,7 +196,7 @@
 <main>
   <span class="badge" id="corte-badge">● Datos reales · MEF / SIAF · Sector 10</span>
 
-  <!-- Panel de Filtros Globales -->
+  <!-- Filtros Globales -->
   <div class="filter-panel">
     <div class="filter-grid">
       <div class="filter-group">
@@ -185,90 +223,131 @@
   <!-- Tarjetas KPI -->
   <div class="cards" id="cards"></div>
 
-  <!-- Panel del Mapa -->
-  <div class="panel">
-    <div class="panel-head">
-      <div>
-        <h3>Ejecución por región</h3>
-        <div class="count" id="map-subtitle">Devengado acumulado según dimensiones seleccionadas</div>
+  <!-- Pestañas -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tab-resumen">Resumen y Mapa</button>
+    <button class="tab-btn" data-tab="tab-graficos">Gráficos Analíticos</button>
+  </div>
+
+  <!-- Pestaña 1: Resumen -->
+  <div id="tab-resumen" class="tab-content active">
+    <!-- Panel del Mapa -->
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Ejecución por región</h3>
+          <div class="count">Devengado acumulado por departamento de meta</div>
+        </div>
+      </div>
+      <div id="map"></div>
+      <div class="map-legend">
+        <span class="swatch"><span class="dot" style="background:#1b3a2e"></span>Menor ejecución</span>
+        <span class="swatch"><span class="dot" style="background:#2ecc71"></span>Mayor ejecución</span>
+        <span style="margin-left:auto;">Pasa el cursor sobre una región para ver el detalle</span>
       </div>
     </div>
-    <div id="map"></div>
-    <div class="map-legend">
-      <span class="swatch"><span class="dot" style="background:#1b3a2e"></span>Menor ejecución</span>
-      <span class="swatch"><span class="dot" style="background:#2ecc71"></span>Mayor ejecución</span>
-      <span style="margin-left:auto;">Pasa el cursor sobre una región para ver el detalle</span>
+
+    <!-- Panel de Pliegos -->
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Pliegos</h3>
+          <div class="count" id="pliegos-count"></div>
+        </div>
+        <div class="controls">
+          <input type="text" id="search-pliego" placeholder="Buscar pliego..." style="width: 240px;">
+          <select id="sort-pliego" style="width: auto;">
+            <option value="pim-desc">PIM: mayor a menor</option>
+            <option value="pim-asc">PIM: menor a mayor</option>
+            <option value="avance-desc">Avance: mayor a menor</option>
+            <option value="avance-asc">Avance: menor a mayor</option>
+            <option value="nombre-asc">Nombre A-Z</option>
+          </select>
+          <button class="btn-excel" id="export-pliegos">⬇ Descargar Excel</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="tbl-pliegos">
+          <thead>
+            <tr>
+              <th>Pliego</th>
+              <th class="num">PIA</th>
+              <th class="num">PIM</th>
+              <th class="num">Devengado</th>
+              <th class="num">Avance</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Panel de Ejecutoras -->
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Ejecutoras <span id="pliego-filter-tag"></span></h3>
+          <div class="count" id="ejec-count"></div>
+        </div>
+        <div class="controls">
+          <input type="text" id="search-ejec" placeholder="Buscar ejecutora..." style="width: 240px;">
+          <select id="sort-ejec" style="width: auto;">
+            <option value="pim-desc">PIM: mayor a menor</option>
+            <option value="pim-asc">PIM: menor a mayor</option>
+            <option value="avance-desc">Avance: mayor a menor</option>
+            <option value="avance-asc">Avance: menor a mayor</option>
+            <option value="nombre-asc">Nombre A-Z</option>
+          </select>
+          <button class="btn-excel" id="export-ejec">⬇ Descargar Excel</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="tbl-ejec">
+          <thead>
+            <tr>
+              <th>Ejecutora</th>
+              <th>Pliego</th>
+              <th class="num">PIA</th>
+              <th class="num">PIM</th>
+              <th class="num">Devengado</th>
+              <th class="num">Avance</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <!-- Panel de Pliegos -->
-  <div class="panel">
-    <div class="panel-head">
-      <div>
-        <h3>Pliegos</h3>
-        <div class="count" id="pliegos-count"></div>
+  <!-- Pestaña 2: Gráficos -->
+  <div id="tab-graficos" class="tab-content">
+    <div class="charts-grid">
+      <!-- Top Pliegos -->
+      <div class="chart-card" style="grid-column: 1 / -1;">
+        <h4>Top 10 Pliegos con Mayor Presupuesto</h4>
+        <div class="sub">Comparación entre PIM y Devengado según filtros seleccionados</div>
+        <div class="chart-container" style="min-height:360px;">
+          <canvas id="chart-top-pliegos"></canvas>
+        </div>
       </div>
-      <div class="controls">
-        <input type="text" id="search-pliego" placeholder="Buscar pliego..." style="width: 240px;">
-        <select id="sort-pliego" style="width: auto;">
-          <option value="pim-desc">PIM: mayor a menor</option>
-          <option value="pim-asc">PIM: menor a mayor</option>
-          <option value="avance-desc">Avance: mayor a menor</option>
-          <option value="avance-asc">Avance: menor a mayor</option>
-          <option value="nombre-asc">Nombre A-Z</option>
-        </select>
-        <button class="btn-excel" id="export-pliegos">⬇ Descargar Excel</button>
-      </div>
-    </div>
-    <div style="overflow-x:auto;">
-      <table id="tbl-pliegos">
-        <thead>
-          <tr>
-            <th>Pliego</th>
-            <th class="num">PIA</th>
-            <th class="num">PIM</th>
-            <th class="num">Devengado</th>
-            <th class="num">Avance</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </div>
 
-  <!-- Panel de Ejecutoras -->
-  <div class="panel">
-    <div class="panel-head">
-      <div>
-        <h3>Ejecutoras <span id="pliego-filter-tag"></span></h3>
-        <div class="count" id="ejec-count"></div>
+      <!-- Distribución por Genérica -->
+      <div class="chart-card">
+        <h4>Devengado por Genérica de Gasto</h4>
+        <div class="sub">Distribución porcentual del monto devengado</div>
+        <div class="chart-container">
+          <canvas id="chart-genericas"></canvas>
+        </div>
       </div>
-      <div class="controls">
-        <input type="text" id="search-ejec" placeholder="Buscar ejecutora..." style="width: 240px;">
-        <select id="sort-ejec" style="width: auto;">
-          <option value="pim-desc">PIM: mayor a menor</option>
-          <option value="pim-asc">PIM: menor a mayor</option>
-          <option value="avance-desc">Avance: mayor a menor</option>
-          <option value="avance-asc">Avance: menor a mayor</option>
-          <option value="nombre-asc">Nombre A-Z</option>
-        </select>
-        <button class="btn-excel" id="export-ejec">⬇ Descargar Excel</button>
+
+      <!-- Devengado por Categoría -->
+      <div class="chart-card">
+        <h4>Ejecución por Categoría de Gasto</h4>
+        <div class="sub">Devengado acumulado por tipo de gasto</div>
+        <div class="chart-container">
+          <canvas id="chart-categorias"></canvas>
+        </div>
       </div>
-    </div>
-    <div style="overflow-x:auto;">
-      <table id="tbl-ejec">
-        <thead>
-          <tr>
-            <th>Ejecutora</th>
-            <th>Pliego</th>
-            <th class="num">PIA</th>
-            <th class="num">PIM</th>
-            <th class="num">Devengado</th>
-            <th class="num">Avance</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
     </div>
   </div>
 
@@ -304,6 +383,23 @@ function barCell(pct){
 // ---- Estado global ----
 let currentYear = DATA_ANIOS[0];
 let activePliego = null;
+
+// ---- Pestañas (Tabs) ----
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    const target = document.getElementById(btn.getAttribute('data-tab'));
+    target.classList.add('active');
+    
+    if(btn.getAttribute('data-tab') === 'tab-resumen'){
+      setTimeout(() => map.invalidateSize(), 150);
+    } else if(btn.getAttribute('data-tab') === 'tab-graficos'){
+      renderCharts();
+    }
+  });
+});
 
 // ---- Selectores de Filtro ----
 const selRubro = document.getElementById('filter-rubro');
@@ -366,6 +462,7 @@ function applyDimensionFilters(rows){
     renderMap();
     renderPliegos();
     renderEjecutoras();
+    renderCharts();
   });
 });
 
@@ -418,7 +515,7 @@ function renderCards(){
     <div class="card pim">
       <div class="label">PIM</div>
       <div class="value">${fmtCompact(totalPim)}</div>
-      <div class="foot">presupuesto institucional modificado</div>
+      <div class="foot">presupuesto modificado</div>
     </div>
     <div class="card dev">
       <div class="label">Devengado</div>
@@ -433,11 +530,12 @@ function renderCards(){
   `;
 }
 
-// ---- Mapa ----
+// ---- Mapa (Base Dark sin marcas de agua) ----
 const map = L.map('map', {scrollWheelZoom:false, zoomControl:true}).setView([-9.2, -75.5], 5);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution: '',
-  maxZoom: 8
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap contributors © CARTO',
+  maxZoom: 8,
+  subdomains: 'abcd'
 }).addTo(map);
 
 let geoLayer = null;
@@ -459,7 +557,6 @@ function colorForPct(devengado, maxDev){
 function renderMap(){
   let rows = applyDimensionFilters(DATA_REGIONES.filter(r => r.ANO_EJE === currentYear));
 
-  // Agrupación dinámica por Departamento
   const byCode = {};
   rows.forEach(r => {
     const code = r.DEPARTAMENTO_META;
@@ -491,7 +588,7 @@ function renderMap(){
       return {
         fillColor: colorForPct(r ? r.devengado : 0, maxDev),
         fillOpacity: 0.85,
-        color: '#0b0c10',
+        color: '#262a33',
         weight: 1
       };
     },
@@ -504,7 +601,7 @@ function renderMap(){
         : `<strong>${nombre}</strong><br>Sin datos con el filtro seleccionado`;
       layer.bindTooltip(html, {className:'region-tooltip', sticky:true});
       layer.on('mouseover', () => layer.setStyle({weight:2, color:'#4ea8de'}));
-      layer.on('mouseout', () => layer.setStyle({weight:1, color:'#0b0c10'}));
+      layer.on('mouseout', () => layer.setStyle({weight:1, color:'#262a33'}));
     }
   }).addTo(map);
 }
@@ -519,7 +616,6 @@ let currentPliegoRows = [];
 function renderPliegos(){
   let rawRows = applyDimensionFilters(DATA_PLIEGOS.filter(r => r.ANO_EJE === currentYear));
 
-  // Consolidar por Pliego
   const pliegoMap = new Map();
   rawRows.forEach(r => {
     if(!pliegoMap.has(r.PLIEGO)){
@@ -599,7 +695,6 @@ let currentEjecRows = [];
 function renderEjecutoras(){
   let rawRows = applyDimensionFilters(DATA_EJECUTORAS.filter(r => r.ANO_EJE === currentYear));
 
-  // Consolidar por Unidad Ejecutora
   const ejecMap = new Map();
   rawRows.forEach(r => {
     const key = `${r.PLIEGO}_${r.SEC_EJEC}`;
@@ -677,6 +772,115 @@ function renderEjecutoras(){
 
 searchE.addEventListener('input', renderEjecutoras);
 sortE.addEventListener('change', renderEjecutoras);
+
+// ---- Gráficos (Chart.js) ----
+let chartTopPliegos = null;
+let chartGenericas = null;
+let chartCategorias = null;
+
+function renderCharts(){
+  const baseData = applyDimensionFilters(DATA_REGIONES.filter(r => r.ANO_EJE === currentYear));
+
+  // 1. Top Pliegos (PIM vs Devengado)
+  const pliegosRaw = applyDimensionFilters(DATA_PLIEGOS.filter(r => r.ANO_EJE === currentYear));
+  const pliegoMap = new Map();
+  pliegosRaw.forEach(r => {
+    if(!pliegoMap.has(r.PLIEGO)){
+      pliegoMap.set(r.PLIEGO, { nombre: r.PLIEGO_NOMBRE, pim:0, dev:0 });
+    }
+    const p = pliegoMap.get(r.PLIEGO);
+    p.pim += (r.pim || 0);
+    p.dev += (r.devengado || 0);
+  });
+  const top10 = Array.from(pliegoMap.values()).sort((a,b) => b.pim - a.pim).slice(0, 10);
+
+  if (chartTopPliegos) chartTopPliegos.destroy();
+  const ctxTop = document.getElementById('chart-top-pliegos').getContext('2d');
+  chartTopPliegos = new Chart(ctxTop, {
+    type: 'bar',
+    data: {
+      labels: top10.map(p => p.nombre.length > 25 ? p.nombre.substring(0,25)+'...' : p.nombre),
+      datasets: [
+        { label: 'PIM', data: top10.map(p => p.pim), backgroundColor: '#4ea8de', borderRadius: 4 },
+        { label: 'Devengado', data: top10.map(p => p.dev), backgroundColor: '#2ecc71', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#e8e9ec' } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${fmtMoney(ctx.raw)}` } }
+      },
+      scales: {
+        x: { ticks: { color: '#8b8f9a' }, grid: { color: '#262a33' } },
+        y: { ticks: { color: '#8b8f9a', callback: v => fmtCompact(v) }, grid: { color: '#262a33' } }
+      }
+    }
+  });
+
+  // 2. Gráfico Dona: Genéricas
+  const genMap = new Map();
+  baseData.forEach(r => {
+    if(r.GENERICA_COD){
+      const label = `${r.GENERICA_COD} ${r.GENERICA_DESCRIPCION || ''}`;
+      genMap.set(label, (genMap.get(label) || 0) + (r.devengado || 0));
+    }
+  });
+
+  if (chartGenericas) chartGenericas.destroy();
+  const ctxGen = document.getElementById('chart-genericas').getContext('2d');
+  chartGenericas = new Chart(ctxGen, {
+    type: 'doughnut',
+    data: {
+      labels: Array.from(genMap.keys()),
+      datasets: [{
+        data: Array.from(genMap.values()),
+        backgroundColor: ['#4ea8de', '#2ecc71', '#f5b942', '#e94560', '#c792ea', '#34495e', '#16a085'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#e8e9ec', font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${fmtMoney(ctx.raw)}` } }
+      }
+    }
+  });
+
+  // 3. Gráfico Barras: Categoría de Gasto
+  const catMap = new Map();
+  baseData.forEach(r => {
+    const val = r.CATEGORIA_GASTO_DESCRIPCION || r.CATEGORIA_GASTO || 'SIN CATEGORIA';
+    catMap.set(val, (catMap.get(val) || 0) + (r.devengado || 0));
+  });
+
+  if (chartCategorias) chartCategorias.destroy();
+  const ctxCat = document.getElementById('chart-categorias').getContext('2d');
+  chartCategorias = new Chart(ctxCat, {
+    type: 'bar',
+    data: {
+      labels: Array.from(catMap.keys()),
+      datasets: [{
+        label: 'Devengado',
+        data: Array.from(catMap.values()),
+        backgroundColor: '#c792ea',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `Devengado: ${fmtMoney(ctx.raw)}` } }
+      },
+      scales: {
+        x: { ticks: { color: '#8b8f9a' }, grid: { color: '#262a33' } },
+        y: { ticks: { color: '#8b8f9a', callback: v => fmtCompact(v) }, grid: { color: '#262a33' } }
+      }
+    }
+  });
+}
 
 // ---- Exportar a Excel ----
 function descargarExcel(rows, columnas, nombreArchivo, nombreHoja){
