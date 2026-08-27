@@ -127,6 +127,11 @@
   }
   .region-tooltip::before{border-top-color:var(--border) !important;}
 
+  .corte-info{
+    display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted);
+    margin-left:12px; margin-bottom:20px;
+  }
+
   footer{text-align:center; color:var(--muted); font-size:12px; padding:24px 0 0;}
 </style>
 </head>
@@ -148,6 +153,7 @@
 
 <main>
   <span class="badge">● Datos reales · MEF / SIAF · Sector 10</span>
+  <span class="corte-info" id="corte-info"></span>
 
   <div class="cards" id="cards"></div>
 
@@ -308,6 +314,14 @@ function renderCards(){
       <div class="foot">devengado / PIM</div>
     </div>
   `;
+
+  const corteEl = document.getElementById('corte-info');
+  if (r.fecha_corte){
+    const d = new Date(r.fecha_corte + 'T00:00:00');
+    corteEl.textContent = `📅 Datos al corte del ${d.toLocaleDateString('es-PE', {day:'2-digit', month:'2-digit', year:'numeric'})}`;
+  } else {
+    corteEl.textContent = '';
+  }
 }
 
 // ---- Mapa ----
