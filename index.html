@@ -41,9 +41,19 @@
     padding:6px 12px; border-radius:20px; font-size:12.5px; font-weight:500; margin-bottom:20px;
   }
 
+  .filter-panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px 20px; margin-bottom:24px;
+  }
+  .filter-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; width:100%;
+  }
+  .filter-group{display:flex; flex-direction:column; gap:6px;}
+  .filter-group label{font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:600; letter-spacing:.04em;}
+
   .cards{
     display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr));
-    gap:16px; margin-bottom:36px;
+    gap:16px; margin-bottom:24px;
   }
   .card{
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
@@ -68,12 +78,6 @@
   }
   .panel-head h3{font-size:15px; margin:0; font-weight:600;}
   .panel-head .count{font-size:12.5px; color:var(--muted);}
-
-  .filter-grid{
-    display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; width:100%; margin-bottom:16px;
-  }
-  .filter-group{display:flex; flex-direction:column; gap:6px;}
-  .filter-group label{font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:600; letter-spacing:.04em;}
 
   .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
   input[type=text], select{
@@ -154,18 +158,8 @@
 <main>
   <span class="badge" id="corte-badge">● Datos reales · MEF / SIAF · Sector 10</span>
 
-  <div class="cards" id="cards"></div>
-
-  <!-- Panel del Mapa con Filtros -->
-  <div class="panel">
-    <div class="panel-head">
-      <div>
-        <h3>Ejecución por región</h3>
-        <div class="count" id="map-subtitle">Devengado acumulado según dimensiones seleccionadas</div>
-      </div>
-    </div>
-
-    <!-- Filtros de interacción con el mapa -->
+  <!-- Panel de Filtros Globales -->
+  <div class="filter-panel">
     <div class="filter-grid">
       <div class="filter-group">
         <label for="filter-rubro">Rubro</label>
@@ -186,7 +180,19 @@
         </select>
       </div>
     </div>
+  </div>
 
+  <!-- Tarjetas KPI -->
+  <div class="cards" id="cards"></div>
+
+  <!-- Panel del Mapa -->
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <h3>Ejecución por región</h3>
+        <div class="count" id="map-subtitle">Devengado acumulado según dimensiones seleccionadas</div>
+      </div>
+    </div>
     <div id="map"></div>
     <div class="map-legend">
       <span class="swatch"><span class="dot" style="background:#1b3a2e"></span>Menor ejecución</span>
@@ -195,6 +201,7 @@
     </div>
   </div>
 
+  <!-- Panel de Pliegos -->
   <div class="panel">
     <div class="panel-head">
       <div>
@@ -229,6 +236,7 @@
     </div>
   </div>
 
+  <!-- Panel de Ejecutoras -->
   <div class="panel">
     <div class="panel-head">
       <div>
@@ -305,12 +313,11 @@ const selGenerica = document.getElementById('filter-generica');
 function populateFilterOptions(){
   const baseRows = DATA_REGIONES.filter(r => r.ANO_EJE === currentYear);
 
-  // 1. Rubro + Rubro descripción
+  // Rubro
   const rubros = new Map();
   baseRows.forEach(r => {
     if(r.RUBRO !== undefined && r.RUBRO !== null) {
-      const desc = r.RUBRO_DESCRIPCION || '';
-      rubros.set(r.RUBRO, `${r.RUBRO} - ${desc}`);
+      rubros.set(r.RUBRO, `${r.RUBRO} - ${r.RUBRO_DESCRIPCION || ''}`);
     }
   });
   selRubro.innerHTML = '<option value="">(Todos los rubros)</option>' +
@@ -318,7 +325,7 @@ function populateFilterOptions(){
       .sort((a,b) => String(a[0]).localeCompare(String(b[0])))
       .map(([k,v]) => `<option value="${k}">${v}</option>`).join('');
 
-  // 2. Categoria_gasto_descripcion
+  // Categoría de Gasto
   const cats = new Set();
   baseRows.forEach(r => {
     const val = r.CATEGORIA_GASTO_DESCRIPCION || r.CATEGORIA_GASTO;
@@ -327,12 +334,11 @@ function populateFilterOptions(){
   selCatGasto.innerHTML = '<option value="">(Todas las categorías)</option>' +
     Array.from(cats).sort().map(v => `<option value="${v}">${v}</option>`).join('');
 
-  // 3. TIPO_TRANSACCION+GENERICA y GENERICA_DESCRIPCION
+  // Genérica
   const genericas = new Map();
   baseRows.forEach(r => {
     if(r.GENERICA_COD) {
-      const desc = r.GENERICA_DESCRIPCION || '';
-      genericas.set(r.GENERICA_COD, `${r.GENERICA_COD} ${desc}`);
+      genericas.set(r.GENERICA_COD, `${r.GENERICA_COD} ${r.GENERICA_DESCRIPCION || ''}`);
     }
   });
   selGenerica.innerHTML = '<option value="">(Todas las genéricas)</option>' +
@@ -341,9 +347,25 @@ function populateFilterOptions(){
       .map(([k,v]) => `<option value="${k}">${v}</option>`).join('');
 }
 
+function applyDimensionFilters(rows){
+  const fRubro = selRubro.value;
+  const fCat = selCatGasto.value;
+  const fGen = selGenerica.value;
+
+  return rows.filter(r => {
+    if (fRubro && String(r.RUBRO) !== String(fRubro)) return false;
+    if (fCat && (r.CATEGORIA_GASTO_DESCRIPCION !== fCat && r.CATEGORIA_GASTO !== fCat)) return false;
+    if (fGen && r.GENERICA_COD !== fGen) return false;
+    return true;
+  });
+}
+
 [selRubro, selCatGasto, selGenerica].forEach(el => {
   el.addEventListener('change', () => {
+    renderCards();
     renderMap();
+    renderPliegos();
+    renderEjecutoras();
   });
 });
 
@@ -366,10 +388,18 @@ function fmtFecha(iso){
 }
 
 function renderCards(){
-  const r = DATA_RESUMEN.find(x => x.ANO_EJE === currentYear) || {};
+  const rRes = DATA_RESUMEN.find(x => x.ANO_EJE === currentYear) || {};
+  const baseEjec = applyDimensionFilters(DATA_EJECUTORAS.filter(r => r.ANO_EJE === currentYear));
+
+  const totalPia = baseEjec.reduce((acc, r) => acc + (r.pia || 0), 0);
+  const totalPim = baseEjec.reduce((acc, r) => acc + (r.pim || 0), 0);
+  const totalDev = baseEjec.reduce((acc, r) => acc + (r.devengado || 0), 0);
+  const avancePct = totalPim > 0 ? (totalDev / totalPim) * 100 : 0;
+  const numPliegos = new Set(baseEjec.map(r => r.PLIEGO)).size;
+  const numEjec = new Set(baseEjec.map(r => r.SEC_EJEC)).size;
 
   const badge = document.getElementById('corte-badge');
-  const fecha = fmtFecha(r.fecha_corte);
+  const fecha = fmtFecha(rRes.fecha_corte);
   badge.textContent = fecha
     ? `● Datos reales · MEF / SIAF · Sector 10 · Corte al ${fecha}`
     : `● Datos reales · MEF / SIAF · Sector 10`;
@@ -377,27 +407,27 @@ function renderCards(){
   document.getElementById('cards').innerHTML = `
     <div class="card pliegos">
       <div class="label">Pliegos</div>
-      <div class="value">${r.num_pliegos||0}</div>
-      <div class="foot">${r.num_ejecutoras||0} unidades ejecutoras</div>
+      <div class="value">${numPliegos}</div>
+      <div class="foot">${numEjec} unidades ejecutoras</div>
     </div>
     <div class="card pia">
       <div class="label">PIA</div>
-      <div class="value">${fmtCompact(r.total_pia)}</div>
+      <div class="value">${fmtCompact(totalPia)}</div>
       <div class="foot">presupuesto inicial de apertura</div>
     </div>
     <div class="card pim">
       <div class="label">PIM</div>
-      <div class="value">${fmtCompact(r.total_pim)}</div>
+      <div class="value">${fmtCompact(totalPim)}</div>
       <div class="foot">presupuesto institucional modificado</div>
     </div>
     <div class="card dev">
       <div class="label">Devengado</div>
-      <div class="value">${fmtCompact(r.total_devengado)}</div>
+      <div class="value">${fmtCompact(totalDev)}</div>
       <div class="foot">ejecución acumulada</div>
     </div>
     <div class="card avance">
       <div class="label">Avance</div>
-      <div class="value">${(r.avance_pct||0).toFixed(1)}%</div>
+      <div class="value">${avancePct.toFixed(1)}%</div>
       <div class="foot">devengado / PIM</div>
     </div>
   `;
@@ -427,16 +457,7 @@ function colorForPct(devengado, maxDev){
 }
 
 function renderMap(){
-  let rows = DATA_REGIONES.filter(r => r.ANO_EJE === currentYear);
-
-  // Aplicar filtros
-  const fRubro = selRubro.value;
-  const fCat = selCatGasto.value;
-  const fGen = selGenerica.value;
-
-  if (fRubro) rows = rows.filter(r => String(r.RUBRO) === String(fRubro));
-  if (fCat) rows = rows.filter(r => (r.CATEGORIA_GASTO_DESCRIPCION === fCat || r.CATEGORIA_GASTO === fCat));
-  if (fGen) rows = rows.filter(r => r.GENERICA_COD === fGen);
+  let rows = applyDimensionFilters(DATA_REGIONES.filter(r => r.ANO_EJE === currentYear));
 
   // Agrupación dinámica por Departamento
   const byCode = {};
@@ -496,7 +517,32 @@ const countP = document.getElementById('pliegos-count');
 let currentPliegoRows = [];
 
 function renderPliegos(){
-  let rows = DATA_PLIEGOS.filter(r => r.ANO_EJE === currentYear);
+  let rawRows = applyDimensionFilters(DATA_PLIEGOS.filter(r => r.ANO_EJE === currentYear));
+
+  // Consolidar por Pliego
+  const pliegoMap = new Map();
+  rawRows.forEach(r => {
+    if(!pliegoMap.has(r.PLIEGO)){
+      pliegoMap.set(r.PLIEGO, {
+        ANO_EJE: r.ANO_EJE,
+        PLIEGO: r.PLIEGO,
+        PLIEGO_NOMBRE: r.PLIEGO_NOMBRE,
+        pia: 0,
+        pim: 0,
+        devengado: 0
+      });
+    }
+    const p = pliegoMap.get(r.PLIEGO);
+    p.pia += (r.pia || 0);
+    p.pim += (r.pim || 0);
+    p.devengado += (r.devengado || 0);
+  });
+
+  let rows = Array.from(pliegoMap.values()).map(p => {
+    p.avance_pct = p.pim > 0 ? (p.devengado / p.pim) * 100 : 0;
+    return p;
+  });
+
   const total = rows.length;
   const q = searchP.value.trim().toLowerCase();
   if (q) rows = rows.filter(r => r.PLIEGO_NOMBRE.toLowerCase().includes(q) || r.PLIEGO.includes(q));
@@ -551,12 +597,38 @@ const tagEl = document.getElementById('pliego-filter-tag');
 let currentEjecRows = [];
 
 function renderEjecutoras(){
-  let rows = DATA_EJECUTORAS.filter(r => r.ANO_EJE === currentYear);
-  const total = rows.length;
+  let rawRows = applyDimensionFilters(DATA_EJECUTORAS.filter(r => r.ANO_EJE === currentYear));
+
+  // Consolidar por Unidad Ejecutora
+  const ejecMap = new Map();
+  rawRows.forEach(r => {
+    const key = `${r.PLIEGO}_${r.SEC_EJEC}`;
+    if(!ejecMap.has(key)){
+      ejecMap.set(key, {
+        ANO_EJE: r.ANO_EJE,
+        PLIEGO: r.PLIEGO,
+        SEC_EJEC: r.SEC_EJEC,
+        EJECUTORA_NOMBRE: r.EJECUTORA_NOMBRE,
+        pia: 0,
+        pim: 0,
+        devengado: 0
+      });
+    }
+    const e = ejecMap.get(key);
+    e.pia += (r.pia || 0);
+    e.pim += (r.pim || 0);
+    e.devengado += (r.devengado || 0);
+  });
+
+  let rows = Array.from(ejecMap.values()).map(e => {
+    e.avance_pct = e.pim > 0 ? (e.devengado / e.pim) * 100 : 0;
+    return e;
+  });
 
   if (activePliego){
     rows = rows.filter(r => r.PLIEGO === activePliego);
-    const pliegoNombre = (DATA_PLIEGOS.find(p => p.PLIEGO === activePliego && p.ANO_EJE === currentYear) || {}).PLIEGO_NOMBRE || '';
+    const pliegoObj = DATA_PLIEGOS.find(p => p.PLIEGO === activePliego && p.ANO_EJE === currentYear) || {};
+    const pliegoNombre = pliegoObj.PLIEGO_NOMBRE || `Pliego ${activePliego}`;
     tagEl.innerHTML = `<span class="pliego-tag">${pliegoNombre}</span> <button class="clear-filter" id="clear-filter">quitar filtro</button>`;
     document.getElementById('clear-filter').addEventListener('click', () => {
       activePliego = null;
@@ -567,6 +639,7 @@ function renderEjecutoras(){
     tagEl.innerHTML = '';
   }
 
+  const total = rows.length;
   const q = searchE.value.trim().toLowerCase();
   if (q) rows = rows.filter(r => r.EJECUTORA_NOMBRE.toLowerCase().includes(q));
 
@@ -639,8 +712,8 @@ document.getElementById('export-ejec').addEventListener('click', () => {
 });
 
 function renderAll(){
-  renderCards();
   populateFilterOptions();
+  renderCards();
   renderMap();
   renderPliegos();
   renderEjecutoras();
